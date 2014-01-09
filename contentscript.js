@@ -29,6 +29,8 @@ Google Chrome浏览器。
 @version: 2014-1-9
 */
 
+var version = chrome.runtime.getManifest().version;
+
 //车票查询页和订单提交页都会用到
 var audioTag = null;
 var sound = 'http://static.liebao.cn/resources/audio/song25.ogg'; //没有设置正确的 content-type,  Firefox和Safari不能播放该文件
@@ -222,7 +224,7 @@ location.pathname == '/otn/leftTicket/init' && (function(){
 
     var form = $('<form></form>');
     var fieldset = $('<fieldset style="border:1px solid; padding: 20px; background-color: #F5F5DC;">'+
-      '<legend><a href="https://github.com/wei345/12306helper" style="color:black">12306helper</a></legend></fieldset>').appendTo(form);
+      '<legend><a href="https://github.com/wei345/12306helper" style="color:black">12306helper</a> '+ version +'</legend></fieldset>').appendTo(form);
     
     var trainNumbersInput = $('<input name="trainNumbers" placeholder="车次，多个以英文逗号分隔" style="width:200px"/>')
       .val(query.trainNumbers.join(','))

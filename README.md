@@ -4,7 +4,7 @@
 
 ## 运行环境
 
-Google Chrome 浏览器。
+Google Chrome 浏览器 版本22(2012-09-25)以上。
 
 ## 安装
 
