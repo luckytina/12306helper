@@ -1,0 +1,17 @@
+{
+  "name": "12306helper",
+  "version": "1.0",
+
+  "description": "自动查票，自动点击'预订'按钮进入预订页面，自动选中乘客，当人工输入4位验证码后自动提交订单。",
+  //"icons": { "48": "icon48.png" },
+  "homepage_url": "https://github.com/wei345/12306helper",
+
+  "content_scripts": [{
+    "all_frames": false,
+    "js": ["jquery.js", "contentscript.js"],
+    "matches": ["https://kyfw.12306.cn/otn/leftTicket/init", "https://kyfw.12306.cn/otn/confirmPassenger/initDc"],
+    "run_at": "document_end"
+  }],
+
+  "manifest_version": 2
+}
