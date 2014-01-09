@@ -26,7 +26,6 @@ Google Chrome浏览器。
 浏览器最小化，该程序也会正常运行。
 
 @author: Liu Wei
-@version: 2014-1-9
 */
 
 var version = chrome.runtime.getManifest().version;
@@ -48,7 +47,7 @@ location.pathname == '/otn/leftTicket/init' && (function(){
 
   //解析12306车票预订页面
   var context = document.body;
-  var resultTrSelector = '#t-list table tbody tr';
+  var resultTrSelector = '#t-list table tbody tr[id^=ticket_]';
   var queryButton = $('#query_ticket', context);
   var seat2tdIndex = {
     '硬卧' : 7,
@@ -145,28 +144,105 @@ location.pathname == '/otn/leftTicket/init' && (function(){
       stop();
     }
 
-      $(resultTrSelector, context).each(function(){
-        for (var j = 0; j < seats.length; j++) {
-          for (var i = 0; i < trainNumbers.length; i++) {
-            checkTiket(this, trainNumbers[i], seats[j]);
-          };
-        };
+    //选择的车次并且座位够数
+    var trains = $(resultTrSelector, context).map(function(index, tr){
+
+      if(trainNumbers.indexOf(getTrainNumber(tr)) == -1) 
+        return null;
+
+      var train = new Train(tr);
+
+      return train.total >= names.length
+          ?
+          train
+          :
+          null;
     });
-  }
-  
-  function checkTiket(tr, trainNumber, seat){
-    if(getTrainNumber(tr).toLowerCase() == (trainNumber + '').toLowerCase()){
-      var count = $.trim($('td:eq('+ seat2tdIndex[seat] +')', tr).text());
-      if(count && !isNaN(count) && count >= names.length){
-        alert(trainNumber + " 有 " + count + " 张 " + seat, seat, tr);
+
+    //order by 席别, 车次
+    trains.sort(function(a, b){
+      for(var i = 0; i < seats.length; i++){
+        if(a.counts[i] != b.counts[i])
+          return b.counts[i] - a.counts[i];
       }
-      if(count == '有'){
-        alert(trainNumber + " 有 " + seat, seat, tr);
+      return trainNumbers.indexOf(a.number) - trainNumbers.indexOf(b.number);
+    });
+
+    if(trains.length > 0){
+      //查找together
+      for(var i = 0; i < trains.length; i++){
+        var train = trains[i];
+        if(train.together){
+          push(train.orderSeats, train.together, names.length);
+          alert(train);
+          return;
+        }
       }
+      
+      //第一个就是最合适的
+      var train = trains[0];
+      
+      for(var i = 0; i < train.counts.length; i++){
+        
+        push(train.orderSeats, 
+          seats[i], 
+          Math.min(train.counts[i], names.length - train.orderSeats.length));
+        
+        if(train.orderSeats.length == names.length)
+          break;
+      }
+
+      alert(train);
     }
   }
 
-  function alert(msg, seat, tr){
+  function push(arr, item, repeats){
+    for(var i = 0; i < repeats; i++){
+      arr.push(item);
+    }
+  }
+
+  function Train(tr){
+    var me = this;
+    this.tr = tr;
+    this.number = getTrainNumber(tr);
+    this.total = 0;
+    this.together = null;
+    this.seat2count = {};
+    this.orderSeats = [];
+    this.counts = $.map(seats, function(item, index){
+      count = getSeatCount(tr, item);
+      me.total += count;
+      me.seat2count[item] = count;
+
+      if(!me.together 
+          && (item == '软卧' || item == '硬卧') 
+          && count >= names.length){
+        me.together = item;
+      }
+
+      return count;
+    });
+  }
+
+  function getSeatCount(tr, seat){
+    var count = $.trim($(tr).find('td').eq(seat2tdIndex[seat]).text());
+    
+    if(count == '有')
+      count = 999;
+    
+    if(count == '' || isNaN(count))
+      count = 0;
+    else
+      count = parseInt(count);
+    
+    return count;
+  }
+
+  function alert(train){
+    var msg = "自动选择 " + train.number + ", " + train.orderSeats.length + "张: " + train.orderSeats.join(',');
+    var tr = train.tr;
+
     if(!$(tr).attr('alreadyAlert')){
       $(tr).attr('alreadyAlert', true);
       if(submitQueryTimerId) {
@@ -177,18 +253,18 @@ location.pathname == '/otn/leftTicket/init' && (function(){
       play();
       $(tr).css('background-color', 'cornflowerblue');
 
-      goOrder(tr, seat);
+      goOrder(tr, train.orderSeats);
     }
   }
 
-  function goOrder(tr, seat){ //点击预订按钮
+  function goOrder(tr, seats){ //点击预订按钮
     if(!isGoingOrder){
       isGoingOrder = true;
 
       var order = {
-        seat : seat,
+        seats : seats,
         names : names
-      }
+      };
       
       localStorage.order = JSON.stringify(order);
 
@@ -270,7 +346,7 @@ location.pathname == '/otn/leftTicket/init' && (function(){
     info = function(msg){
       _info(msg);
       infoDiv.html(msg);
-    }
+    };
 
   }
 
@@ -280,7 +356,7 @@ location.pathname == '/otn/leftTicket/init' && (function(){
     status : status,
     debug : {
       goOrder : goOrder,
-      checkTiket : checkTiket
+      checkTikets : checkTikets
     }
   };
 })();
@@ -291,10 +367,8 @@ location.pathname == '/otn/confirmPassenger/initDc' && (function(){
   play();
 
   var order = JSON.parse(localStorage.order);
-  var seat = order.seat;
+  var seats = order.seats;
   var names = order.names;
-  
-  if(seat == '无座') seat = '硬座'; //下拉列表中没有'无座'项
 
   var timer = setInterval(fillOrder, 200);
 
@@ -314,10 +388,15 @@ location.pathname == '/otn/confirmPassenger/initDc' && (function(){
     if(allChecked){
 
       console.log('正在选席别..');
-      $('select[id^=seatType] option').each(function(){
-        if($(this).text().indexOf(seat) != -1){
-          this.selected = true;
-        }
+      $('select[id^=seatType]').each(function(index, item){
+        $(this).find('option').each(function(){
+          var seat = seats[index];
+          if(seat == '无座') seat = '硬座'; //下拉列表中没有'无座'项
+          if($(this).text().indexOf(seat) != -1){
+            this.selected = true;
+            return false;
+          }
+        });
       });
 
       //验证码输入框获得焦点，输入4个字符后立刻提交订单
