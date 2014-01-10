@@ -63,8 +63,9 @@ location.pathname == '/otn/leftTicket/init' && (function(){
     return $('td:first .ticket-info .train div a', tr).text();
   }
   function canQuery(){
-    return queryButton.text() == '查询' 
-      && (!lastSubmitQueryTime || (new Date().getTime() - lastSubmitQueryTime) > 3000); //两次查询至少间隔3秒，用于查票
+    //12306 5秒查一次, 更快速的点击查询按钮是没用的
+    return queryButton.text() == '查询'
+      && !queryButton.hasClass('btn-disabled');
   }
   function doSubmitQuery(){
     queryButton[0].click();
@@ -101,8 +102,8 @@ location.pathname == '/otn/leftTicket/init' && (function(){
       names : names
     });
 
-    submitQueryTimerId = setInterval(submitQuery, 1000);
-    checkTiketsTimerId = setInterval(checkTikets, 1000);
+    submitQueryTimerId = setInterval(submitQuery, 100);
+    checkTiketsTimerId = setInterval(checkTikets, 100);
 
     info('已启动 ' + getQueryInfo());
   }
@@ -302,7 +303,7 @@ location.pathname == '/otn/leftTicket/init' && (function(){
     var fieldset = $('<fieldset style="border:1px solid; padding: 20px; background-color: #F5F5DC;">'+
       '<legend><a href="https://github.com/wei345/12306helper" style="color:black">12306helper</a> '+ version +'</legend></fieldset>').appendTo(form);
     
-    var trainNumbersInput = $('<input name="trainNumbers" placeholder="车次，多个以英文逗号分隔" style="width:200px"/>')
+    var trainNumbersInput = $('<input name="trainNumbers" placeholder="车次，多个以英文逗号分隔" style="width:350px"/>')
       .val(query.trainNumbers.join(','))
       .appendTo(fieldset);
     
@@ -405,7 +406,7 @@ location.pathname == '/otn/confirmPassenger/initDc' && (function(){
           $('#submitOrder_id').focus()[0].click();
         }
       }).mouseover(function(){
-        this.select();
+        this.focus();
       })[0].focus();
 
       clearInterval(timer);
