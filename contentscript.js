@@ -68,7 +68,9 @@ location.pathname == '/otn/leftTicket/init' && (function () {
     function canQuery() {
         //12306 5秒查一次, 更快速的点击查询按钮是没用的
         return queryButton.text() == '查询'
-            && !queryButton.hasClass('btn-disabled');
+            && !queryButton.hasClass('btn-disabled')
+            //两次查询最小间隔，避免太频繁导致浏览器占满CPU
+            && (!lastSubmitQueryTime || (new Date().getTime() - lastSubmitQueryTime) > 3000);
     }
 
     function doSubmitQuery() {
