@@ -144,10 +144,6 @@ location.pathname == '/otn/leftTicket/init' && (function () {
     }
 
     function checkTikets() {
-        //如果已不再刷新，且最后一次提交已过去1分钟，则停止检查
-        if (!submitQueryTimerId && lastSubmitQueryTime && (new Date().getTime() - lastSubmitQueryTime) / 1000 > 60) {
-            stop();
-        }
 
         //符合条件的车次
         var trains = $(resultTrSelector, context).map(function (index, tr) {
@@ -246,36 +242,28 @@ location.pathname == '/otn/leftTicket/init' && (function () {
     }
 
     function found(train) {
-        var msg = "自动选择 " + train.number + ", " + train.orderSeats.length + "张: " + train.orderSeats.join(',');
-        var tr = train.tr;
+        stop();
 
-        if (!$(tr).attr('alreadyAlert')) {
-            $(tr).attr('alreadyAlert', true);
-            if (submitQueryTimerId) {
-                clearInterval(submitQueryTimerId);
-                submitQueryTimerId = null;
-            }
-            info(msg);
-            play();
-            $(tr).css('background-color', 'cornflowerblue');
+        play();
 
-            goOrder(tr, train.orderSeats);
-        }
+        info("自动选择 " + train.number + ", " + train.orderSeats.length + "张: " + train.orderSeats.join(','));
+
+        $(train.tr).css('background-color', 'cornflowerblue');
+
+        goOrder(train);
     }
 
-    function goOrder(tr, seats) { //点击预订按钮
+    function goOrder(train) { //点击预订按钮
         if (!isGoingOrder) {
             isGoingOrder = true;
 
-            var order = {
-                seats: seats,
+            localStorage.order = JSON.stringify({
+                seats: train.orderSeats,
                 names: names
-            };
-
-            localStorage.order = JSON.stringify(order);
+            });
 
             info('正在跳转到预订页面..');
-            doGoOrder(tr);
+            doGoOrder(train.tr);
         }
     }
 
