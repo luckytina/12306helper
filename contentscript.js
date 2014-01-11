@@ -331,6 +331,7 @@ location.pathname == '/otn/leftTicket/init' && (function () {
             '<li style="list-style-type:disc">你应该提前试试此脚本，选择其他日期、其他车次，</li>' +
             '<li style="list-style-type:disc">验证此脚本功能正常和你输入的乘客名字正确，听听提示音乐是什么。</li>' +
             '<li style="list-style-type:disc">记得刷新页面，检查是否处于登录状态。</li>' +
+            '<li style="list-style-type:disc">在起售时间之前3分钟内不要查询，避免在服务端留下缓存，查不到票。</li>' +
             '</ul>').appendTo(fieldset);
 
         var infoDiv = $('<div style="margin-top: 10px;"></div>').appendTo(fieldset);
