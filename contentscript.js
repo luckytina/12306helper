@@ -40,10 +40,11 @@ function play() {
 //车票查询页
 location.pathname == '/otn/leftTicket/init' && (function () {
 
-    var query = localStorage.query ? JSON.parse(localStorage.query) : {trainNumbers: [], seats: [], names: []};
+    var query = localStorage.query ? JSON.parse(localStorage.query) : {trainNumbers: [], seats: [], names: [], orderByFirst: 'seat'};
     var trainNumbers = query.trainNumbers;
     var seats = query.seats;
     var names = query.names;
+    var orderByFirst = query.orderByFirst;
 
     //解析12306车票预订页面
     var context = document.body;
@@ -87,7 +88,7 @@ location.pathname == '/otn/leftTicket/init' && (function () {
     var isGoingOrder = false;
     ui();
 
-    function start(mySeats, myTrainNumbers, myNames) {
+    function start(mySeats, myTrainNumbers, myNames, myOrderByFirst) {
         if (isRunning) {
             status();
             return;
@@ -101,11 +102,13 @@ location.pathname == '/otn/leftTicket/init' && (function () {
         if (mySeats) seats = (mySeats instanceof Array ? mySeats : [mySeats]);
         if (myTrainNumbers) trainNumbers = (myTrainNumbers instanceof Array ? myTrainNumbers : [myTrainNumbers]);
         if (myNames) names = (myNames instanceof Array ? myNames : [myNames]);
+        orderByFirst = myOrderByFirst || 'seat';
 
         localStorage.query = JSON.stringify({
             trainNumbers: trainNumbers,
             seats: seats,
-            names: names
+            names: names,
+            orderByFirst: orderByFirst
         });
 
         submitQueryTimerId = setInterval(submitQuery, 100);
@@ -150,11 +153,11 @@ location.pathname == '/otn/leftTicket/init' && (function () {
         //符合条件的车次
         var trains = $(resultTrSelector, context).map(function (index, tr) {
 
-            if (trainNumbers.indexOf(getTrainNumber(tr)) == -1)
+            if (trainNumbers.indexOf(getTrainNumber(tr)) == -1) {
                 return null;
+            }
 
             var train = new Train(tr);
-
             return train.total >= names.length
                 ?
                 train
@@ -162,24 +165,33 @@ location.pathname == '/otn/leftTicket/init' && (function () {
                 null;
         });
 
-        //order by 席别, 车次
-        trains.sort(function (a, b) {
-            for (var i = 0; i < seats.length; i++) {
-                if (a.counts[i] != b.counts[i])
-                    return b.counts[i] - a.counts[i];
-            }
-            return trainNumbers.indexOf(a.number) - trainNumbers.indexOf(b.number);
-        });
+        if (orderByFirst == 'seat') {
+            //order by 席别, 车次
+            trains.sort(function (a, b) {
+                for (var i = 0; i < seats.length; i++) {
+                    if (a.counts[i] != b.counts[i]) {
+                        return b.counts[i] - a.counts[i];
+                    }
+                }
+                return trainNumbers.indexOf(a.number) - trainNumbers.indexOf(b.number);
+            });
+        } else {
+            //order by 车次 席别
+            trains.sort(function (a, b) {
+                return trainNumbers.indexOf(a.number) - trainNumbers.indexOf(b.number);
+            });
+        }
 
         if (trains.length > 0) {
-
             //优先选together
-            for (var i = 0; i < trains.length; i++) {
-                var train = trains[i];
-                if (train.together) {
-                    push(train.orderSeats, train.together, names.length);
-                    found(train);
-                    return;
+            if (orderByFirst == 'seat') {
+                for (var i = 0; i < trains.length; i++) {
+                    var train = trains[i];
+                    if (train.together) {
+                        push(train.orderSeats, train.together, names.length);
+                        found(train);
+                        return;
+                    }
                 }
             }
 
@@ -298,17 +310,28 @@ location.pathname == '/otn/leftTicket/init' && (function () {
         var fieldset = $('<fieldset style="border:1px solid; padding: 20px; background-color: #F5F5DC;">' +
             '<legend><a href="https://github.com/wei345/12306helper" style="color:black">12306helper</a> ' + version + '</legend></fieldset>').appendTo(form);
 
-        var trainNumbersInput = $('<input name="trainNumbers" placeholder="车次，多个以英文逗号分隔" style="width:350px"/>')
-            .val(query.trainNumbers.join(','))
+        var trainNumbersInput = $('<input name="trainNumbers" placeholder="车次，多个以英文逗号分隔" style="width:280px"/>')
+            .val(trainNumbers.join(','))
             .appendTo(fieldset);
 
-        var seatsInput = $('<input name="seats" placeholder="席别，多个以英文逗号分隔" style="width:200px; margin-left: 20px;"/>')
-            .val(query.seats.join(','))
+        var seatsInput = $('<input name="seats" placeholder="席别，多个以英文逗号分隔" style="width:150px; margin-left: 20px;"/>')
+            .val(seats.join(','))
             .appendTo(fieldset);
 
-        var namesInput = $('<input name="names" placeholder="乘客名字，多个以英文逗号分隔" style="width:200px; margin-left: 20px;"/>')
-            .val(query.names.join(','))
+        var namesInput = $('<input name="names" placeholder="乘客名字，多个以英文逗号分隔" style="width:180px; margin-left: 20px;"/>')
+            .val(names.join(','))
             .appendTo(fieldset);
+
+        var seatFirstRadio = $('<input name="orderByFirst" id="orderByFirst1" type="radio" value="seat" style="margin-left: 15px"/>').appendTo(fieldset);
+        $('<label for="orderByFirst1">席别优先</label>').appendTo(fieldset);
+        var trainNumberFirstRadio = $('<input name="orderByFirst" id="orderByFirst2" type="radio" value="trainNumber" style="margin-left: 5px"/>').appendTo(fieldset);
+        $('<label for="orderByFirst2">车次优先</label>').appendTo(fieldset);
+        if (orderByFirst == 'seat') {
+            seatFirstRadio[0].checked = true;
+        }
+        if (orderByFirst == 'trainNumber') {
+            trainNumberFirstRadio[0].checked = true;
+        }
 
         //启动按钮
         $('<input type="button" value="启动" style="margin-left: 20px;"/>').click(function () {
@@ -318,8 +341,10 @@ location.pathname == '/otn/leftTicket/init' && (function () {
             var separator = /\s*,\s*/;
 
             start(seatsInput.val().split(separator),
-                trainNumbersInput.val().split(separator),
-                namesInput.val().split(separator));
+                $.trim(trainNumbersInput.val()).toUpperCase().split(separator),
+                namesInput.val().split(separator),
+                $('[name=orderByFirst]:checked', form).val());
+
 
         }).appendTo(fieldset);
 
