@@ -63,7 +63,7 @@ location.pathname == '/otn/leftTicket/init' && (function () {
     }
 
     function getTrainNumber(tr) {
-        return $('td:first .ticket-info .train div a', tr).text();
+        return $.trim($('td:first .ticket-info .train div a', tr).text()).toUpperCase();
     }
 
     function canQuery() {
@@ -386,51 +386,90 @@ location.pathname == '/otn/leftTicket/init' && (function () {
 //-- 订单提交页 --//
 location.pathname == '/otn/confirmPassenger/initDc' && (function () {
     play();
+    ui();
 
     var order = JSON.parse(localStorage.order);
-    var seats = order.seats;
-    var names = order.names;
+    var seats = order.seats; //各乘客对应的席别
+    var names = order.names; //各乘客名
 
+    var checkedNamesCount = 0;
+    var selectedSeatsCount = 0;
     var timer = setInterval(fillOrder, 200);
 
     function fillOrder() {
-        var allChecked = true;
 
-        console.log('正在选乘客..');
-        $.each(names, function (index, item) {
-            var checkbox = $('#normal_passenger_id input[type=checkbox][id*=' + item + ']')[0];
-            if (checkbox) {
-                if (!checkbox.checked) checkbox.click();
-            } else {
-                allChecked = false;
-            }
-        });
+        if (checkedNamesCount < names.length) {
+            info('正在选乘客..');
+            checkedNamesCount = 0;
+            $.each(names, function (index, name) {
+                $('#normal_passenger_id li').each(function () {
+                    if ($.trim($(this).text()) == name) {
+                        var checkbox = $('input[type=checkbox]', this)[0];
+                        if (checkbox) {
+                            if (!checkbox.checked) {
+                                checkbox.click();
+                            }
+                            checkedNamesCount++;
+                        }
+                        return false;
+                    }
+                });
+            });
+        }
 
-        if (allChecked) {
-
-            console.log('正在选席别..');
+        if (selectedSeatsCount < names.length) {
+            info('正在选席别..');
+            selectedSeatsCount = 0;
             $('select[id^=seatType]').each(function (index, item) {
                 $(this).find('option').each(function () {
                     var seat = seats[index];
                     if (seat == '无座') seat = '硬座'; //下拉列表中没有'无座'项
                     if ($(this).text().indexOf(seat) != -1) {
                         this.selected = true;
+                        selectedSeatsCount++;
                         return false;
                     }
                 });
             });
+        }
 
+
+        if (checkedNamesCount == names.length && selectedSeatsCount == names.length) {
             //验证码输入框获得焦点，输入4个字符后立刻提交订单
             $('#randCode').keyup(function () {
                 if (this.value.length == 4) {
                     $('#submitOrder_id').focus()[0].click();
                 }
             }).mouseover(function () {
-                    this.focus();
-                })[0].focus();
+                this.focus();
+            })[0].focus();
 
             clearInterval(timer);
+
+            info('已选择乘客和席别，输入4位验证码自动提交订单');
         }
+    }
+
+    function info(msg) {
+        console.log(msg);
+    }
+
+    function ui() {
+
+        var form = $('<form></form>');
+        var fieldset = $('<fieldset style="border:1px solid; padding: 20px; background-color: #F5F5DC;">' +
+            '<legend><a href="https://github.com/wei345/12306helper" style="color:black">12306helper</a> ' + version + '</legend></fieldset>').appendTo(form);
+
+        var infoDiv = $('<div style="margin-top: 10px;"></div>').appendTo(fieldset);
+
+        form.insertBefore('.layout.person');
+
+        //运行状态
+        var _info = info;
+        info = function (msg) {
+            _info(msg);
+            infoDiv.html(msg);
+        };
     }
 })();
 
